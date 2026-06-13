@@ -104,7 +104,7 @@ void App::SaveProgressNow() {
 void App::ShowViewerScene(const std::string& scene, const std::string& overlay, const std::string& mock) {
     progress_ = game::Progress{};
     if (mock == "progress") {
-        progress_.unlockedLevel = 100;
+        progress_.unlockedLevel = game::MaxLevel;
         progress_.levels[1] = {8, 24.0f, 3};
         progress_.levels[2] = {11, 38.0f, 2};
         progress_.levels[3] = {14, 52.0f, 1};
@@ -114,7 +114,7 @@ void App::ShowViewerScene(const std::string& scene, const std::string& overlay, 
     if (scene == "levels") {
         ChangeScene(SceneId::LevelSelect);
     } else if (scene == "game-high") {
-        ChangeScene(SceneId::Game, 100);
+        ChangeScene(SceneId::Game, game::MaxLevel);
     } else if (scene == "game" || scene == "complete") {
         ChangeScene(SceneId::Game, 12);
     } else {

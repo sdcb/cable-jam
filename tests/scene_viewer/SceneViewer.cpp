@@ -33,6 +33,7 @@ struct Args {
     std::string screenshot;
     std::optional<float> clickX;
     std::optional<float> clickY;
+    int framesAfterClick{4};
     float quality{0.75f};
 };
 
@@ -59,6 +60,8 @@ Args ParseArgs(int argc, char** argv) {
         } else if (key == "--click") {
             args.clickX = std::strtof(next().c_str(), nullptr);
             args.clickY = std::strtof(next().c_str(), nullptr);
+        } else if (key == "--frames-after-click") {
+            args.framesAfterClick = std::max(0, std::atoi(next().c_str()));
         }
     }
     return args;
@@ -202,7 +205,7 @@ int main(int argc, char** argv) {
     if (args.clickX && args.clickY) {
         app.OnMouseMove(*args.clickX, *args.clickY);
         app.OnMouseDown(*args.clickX, *args.clickY);
-        for (int frame = 0; frame < 4; ++frame) {
+        for (int frame = 0; frame < args.framesAfterClick; ++frame) {
             while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
                 TranslateMessage(&msg);
                 DispatchMessageW(&msg);

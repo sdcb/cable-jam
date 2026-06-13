@@ -4,6 +4,27 @@
 #include <cmath>
 
 namespace cable::game {
+namespace {
+
+GridPos Step(GridPos pos, Direction direction) {
+    switch (direction) {
+    case Direction::Up:
+        return {pos.x, pos.y - 1};
+    case Direction::Down:
+        return {pos.x, pos.y + 1};
+    case Direction::Left:
+        return {pos.x - 1, pos.y};
+    case Direction::Right:
+        return {pos.x + 1, pos.y};
+    }
+    return pos;
+}
+
+bool InBounds(BoardSize board, GridPos pos) {
+    return pos.x >= 0 && pos.y >= 0 && pos.x < board.columns && pos.y < board.rows;
+}
+
+} // namespace
 
 GameState::GameState(Level level) : level_(std::move(level)) {
     SetPlayArea({190.0f, 112.0f, 900.0f, 500.0f});
@@ -20,7 +41,7 @@ void GameState::Update(float dt) {
 
     for (Cable& cable : level_.cables) {
         if (cable.removing) {
-            cable.removeProgress = std::min(1.0f, cable.removeProgress + dt / 0.42f);
+            cable.removeProgress = std::min(1.0f, cable.removeProgress + dt / 0.95f);
         }
         if (cable.shakeTime > 0.0f) {
             cable.shakeTime = std::max(0.0f, cable.shakeTime - dt);
@@ -65,24 +86,35 @@ bool GameState::CanRemoveCable(int id) const {
         return false;
     }
 
-    const GridPos plug = cable->path.front();
-    switch (cable->plugDirection) {
-    case Direction::Up:
-        return plug.y == 0;
-    case Direction::Down:
-        return plug.y == level_.board.rows - 1;
-    case Direction::Left:
-        return plug.x == 0;
-    case Direction::Right:
-        return plug.x == level_.board.columns - 1;
+    GridPos scan = Step(cable->path.front(), cable->plugDirection);
+    while (InBounds(level_.board, scan)) {
+        for (const Cable& other : level_.cables) {
+            if (other.removing) {
+                continue;
+            }
+            if (std::find(other.path.begin(), other.path.end(), scan) != other.path.end()) {
+                return false;
+            }
+        }
+        scan = Step(scan, cable->plugDirection);
     }
-    return false;
+    return true;
+}
+
+std::vector<int> GameState::AvailableCableIds() const {
+    std::vector<int> ids;
+    for (const Cable& cable : level_.cables) {
+        if (!cable.removing && CanRemoveCable(cable.id)) {
+            ids.push_back(cable.id);
+        }
+    }
+    return ids;
 }
 
 std::optional<int> GameState::HitTestCable(core::Point logicalPoint) const {
     for (auto it = level_.cables.rbegin(); it != level_.cables.rend(); ++it) {
         const Cable& cable = *it;
-        if (cable.path.empty()) {
+        if (cable.path.empty() || cable.removing) {
             continue;
         }
         if (cable.path.size() == 1) {

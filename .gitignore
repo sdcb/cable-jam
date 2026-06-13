@@ -1,2 +1,4 @@
 /spec
 /build-*/
+*.png
+icons/cable-jam.svg

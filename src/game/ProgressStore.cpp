@@ -1,6 +1,7 @@
 #include "game/ProgressStore.h"
 
 #include "core/WinFile.h"
+#include "game/Level.h"
 
 #include <algorithm>
 #include <cJSON.h>
@@ -9,7 +10,7 @@ namespace cable::game {
 namespace {
 
 int ClampLevel(int value) {
-    return std::clamp(value, 1, 100);
+    return std::clamp(value, 1, MaxLevel);
 }
 
 } // namespace
@@ -46,7 +47,10 @@ Progress LoadProgress(const std::string& path) {
             if (!cJSON_IsObject(item) || !item->string) {
                 continue;
             }
-            const int levelNumber = ClampLevel(std::atoi(item->string));
+            const int levelNumber = std::atoi(item->string);
+            if (levelNumber < 1 || levelNumber > MaxLevel) {
+                continue;
+            }
             LevelProgress level;
             if (const cJSON* value = cJSON_GetObjectItemCaseSensitive(item, "bestClicks"); cJSON_IsNumber(value)) {
                 level.bestClicks = std::max(0, value->valueint);
@@ -108,7 +112,7 @@ void RecordCompletion(Progress& progress, int levelNumber, int clicks, float sec
         current.bestSeconds = seconds;
         current.bestStars = stars;
     }
-    if (levelNumber < 100) {
+    if (levelNumber < MaxLevel) {
         progress.unlockedLevel = std::max(progress.unlockedLevel, levelNumber + 1);
     }
 }

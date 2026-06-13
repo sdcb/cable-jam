@@ -32,6 +32,8 @@ public:
     void StrokeEllipse(const core::Rect& rect, D2D1_COLOR_F color, float width = 1.0f);
     void DrawLine(core::Point a, core::Point b, D2D1_COLOR_F color, float width);
     void DrawPolyline(std::span<const core::Point> points, D2D1_COLOR_F color, float width);
+    void FillPolygon(std::span<const core::Point> points, D2D1_COLOR_F color);
+    void StrokePolygon(std::span<const core::Point> points, D2D1_COLOR_F color, float width = 1.0f);
     void DrawTextUtf8(
         const std::string& text,
         const core::Rect& rect,
@@ -45,6 +47,7 @@ public:
 private:
     bool CreateTarget();
     ComPtr<ID2D1SolidColorBrush> CreateBrush(D2D1_COLOR_F color);
+    ComPtr<ID2D1PathGeometry> CreatePolygonGeometry(std::span<const core::Point> points, bool closed);
 
     HWND hwnd_{};
     int pixelWidth_{1280};

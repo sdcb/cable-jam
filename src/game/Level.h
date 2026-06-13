@@ -8,6 +8,8 @@
 
 namespace cable::game {
 
+constexpr int MaxLevel = 81;
+
 enum class Direction {
     Up,
     Down,
@@ -65,6 +67,7 @@ struct Level {
 BoardLayout ComputeBoardLayout(BoardSize size, core::Rect playArea);
 core::Point CellCenter(const BoardLayout& layout, GridPos pos);
 core::Point DirectionVector(Direction direction);
+Direction DirectionFromDelta(GridPos from, GridPos to);
 int StarsForFailures(int failures);
 std::string FormatSeconds(float seconds);
 

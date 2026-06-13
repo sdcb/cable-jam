@@ -33,7 +33,7 @@ public:
             };
         } else if (kind == Kind::Complete) {
             buttons_ = {
-                {{440.0f, 474.0f, 180.0f, 48.0f}, "继续下一关", result.levelNumber < 100},
+                {{440.0f, 474.0f, 180.0f, 48.0f}, "继续下一关", result.levelNumber < game::MaxLevel},
                 {{660.0f, 474.0f, 180.0f, 48.0f}, "返回主菜单"}
             };
         } else {
@@ -59,9 +59,10 @@ public:
         } else {
             DrawModal(context, {340.0f, 150.0f, 600.0f, 420.0f});
             char summary[160]{};
-            std::snprintf(summary, sizeof(summary), "点击次数：%d\n用时：%s\n失败尝试：%d\n评分：%s", result_.clicks, game::FormatSeconds(result_.seconds).c_str(), result_.failures, std::string(result_.stars, '*').c_str());
+            std::snprintf(summary, sizeof(summary), "点击次数：%d\n用时：%s\n失败尝试：%d\n评分：", result_.clicks, game::FormatSeconds(result_.seconds).c_str(), result_.failures);
             context.DrawTextUtf8("过关", {340.0f, 190.0f, 600.0f, 56.0f}, 38.0f, Color(0.96f, 0.98f, 0.92f), DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
             context.DrawTextUtf8(summary, {460.0f, 278.0f, 360.0f, 150.0f}, 25.0f, Color(0.82f, 0.88f, 0.86f), DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
+            DrawStars(context, 536.0f, 390.0f, 15.0f, result_.stars);
         }
         for (const Button& button : buttons_) {
             DrawButton(context, button);
@@ -88,7 +89,7 @@ public:
             }
         } else if (kind_ == Kind::Complete) {
             app_.Audio().Play(audio::SoundId::ButtonClick);
-            if (hit == 0 && result_.levelNumber < 100) {
+            if (hit == 0 && result_.levelNumber < game::MaxLevel) {
                 app_.ChangeScene(app::SceneId::Game, result_.levelNumber + 1);
             } else {
                 app_.ChangeScene(app::SceneId::MainMenu);

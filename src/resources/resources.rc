@@ -1,5 +1,7 @@
 #include "ResourceIds.h"
 
+IDI_CABLE_JAM ICON "../../icons/cable-jam.ico"
+
 IDR_MP3_UI_BUTTON_CLICK RCDATA "../../assets/audio/ui_button_click.mp3"
 IDR_MP3_UI_CONFIRM RCDATA "../../assets/audio/ui_confirm.mp3"
 IDR_MP3_UI_CANCEL RCDATA "../../assets/audio/ui_cancel.mp3"

@@ -3,6 +3,7 @@
 #include "app/Dpi.h"
 #include "core/Geometry.h"
 #include "core/Timer.h"
+#include "resources/ResourceIds.h"
 
 #include <windowsx.h>
 
@@ -18,6 +19,8 @@ bool Window::Create(App& app, const wchar_t* title, int width, int height) {
     wc.lpfnWndProc = &Window::StaticWndProc;
     wc.hInstance = GetModuleHandleW(nullptr);
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+    wc.hIcon = LoadIconW(wc.hInstance, MAKEINTRESOURCEW(IDI_CABLE_JAM));
+    wc.hIconSm = wc.hIcon;
     wc.lpszClassName = L"CableJamWindow";
     RegisterClassExW(&wc);
 

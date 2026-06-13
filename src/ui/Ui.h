@@ -29,6 +29,7 @@ struct Button {
 };
 
 void DrawButton(graphics::RenderContext& context, const Button& button);
+void DrawStars(graphics::RenderContext& context, float x, float y, float size, int count);
 int HitButton(const std::vector<Button>& buttons, float x, float y);
 void UpdateButtonHover(std::vector<Button>& buttons, float x, float y);
 

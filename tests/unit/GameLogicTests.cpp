@@ -3,19 +3,21 @@
 #include "game/ProgressStore.h"
 
 #include <doctest/doctest.h>
+#include <algorithm>
+#include <cmath>
 #include <set>
 
 using namespace cable::game;
 
 TEST_CASE("board size follows difficulty bands") {
     CHECK(LevelGenerator::BoardSizeForLevel(1) == BoardSize{8, 6});
-    CHECK(LevelGenerator::BoardSizeForLevel(20) == BoardSize{8, 6});
-    CHECK(LevelGenerator::BoardSizeForLevel(21) == BoardSize{10, 7});
-    CHECK(LevelGenerator::BoardSizeForLevel(45) == BoardSize{10, 7});
-    CHECK(LevelGenerator::BoardSizeForLevel(46) == BoardSize{12, 8});
-    CHECK(LevelGenerator::BoardSizeForLevel(75) == BoardSize{12, 8});
-    CHECK(LevelGenerator::BoardSizeForLevel(76) == BoardSize{14, 9});
-    CHECK(LevelGenerator::BoardSizeForLevel(100) == BoardSize{14, 9});
+    CHECK(LevelGenerator::BoardSizeForLevel(18) == BoardSize{8, 6});
+    CHECK(LevelGenerator::BoardSizeForLevel(19) == BoardSize{10, 7});
+    CHECK(LevelGenerator::BoardSizeForLevel(42) == BoardSize{10, 7});
+    CHECK(LevelGenerator::BoardSizeForLevel(43) == BoardSize{12, 8});
+    CHECK(LevelGenerator::BoardSizeForLevel(63) == BoardSize{12, 8});
+    CHECK(LevelGenerator::BoardSizeForLevel(64) == BoardSize{14, 9});
+    CHECK(LevelGenerator::BoardSizeForLevel(81) == BoardSize{14, 9});
 }
 
 TEST_CASE("star rating depends only on failed attempts") {
@@ -42,16 +44,20 @@ TEST_CASE("edge outward plug is removable") {
     CHECK_FALSE(blockedState.CanRemoveCable(1));
 }
 
-TEST_CASE("generated levels are bounded, non-overlapping, and removable") {
-    for (int levelNumber = 1; levelNumber <= 100; ++levelNumber) {
+TEST_CASE("generated levels are bounded, full, non-overlapping, and solvable") {
+    for (int levelNumber = 1; levelNumber <= MaxLevel; ++levelNumber) {
         Level level = LevelGenerator::Generate(levelNumber);
         std::set<std::pair<int, int>> occupied;
         CHECK(level.board == LevelGenerator::BoardSizeForLevel(levelNumber));
         CHECK_FALSE(level.cables.empty());
         GameState state(level);
+        CHECK(state.AvailableCableIds().size() < level.cables.size());
+        if (levelNumber >= 64) {
+            CHECK(state.AvailableCableIds().size() <= 2);
+        }
         for (const Cable& cable : level.cables) {
             CHECK(cable.path.size() >= 2);
-            CHECK(state.CanRemoveCable(cable.id));
+            CHECK(cable.plugDirection == DirectionFromDelta(cable.path[1], cable.path[0]));
             for (std::size_t i = 0; i < cable.path.size(); ++i) {
                 const GridPos pos = cable.path[i];
                 CHECK(pos.x >= 0);
@@ -66,6 +72,17 @@ TEST_CASE("generated levels are bounded, non-overlapping, and removable") {
                 }
             }
         }
+        CHECK(occupied.size() == static_cast<std::size_t>(level.board.columns * level.board.rows));
+        for (int id : level.solutionOrder) {
+            const std::vector<int> available = state.AvailableCableIds();
+            CHECK(std::find(available.begin(), available.end(), id) != available.end());
+            if (levelNumber >= 64) {
+                CHECK(available.size() <= 2);
+            }
+            CHECK(state.TryClickCableById(id));
+            state.Update(1.0f);
+        }
+        CHECK(state.Completed());
     }
 }
 

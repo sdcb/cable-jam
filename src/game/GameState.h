@@ -27,6 +27,7 @@ public:
     bool TryClickCable(core::Point logicalPoint);
     bool TryClickCableById(int id);
     bool CanRemoveCable(int id) const;
+    std::vector<int> AvailableCableIds() const;
     std::optional<int> HitTestCable(core::Point logicalPoint) const;
 
     int Clicks() const { return clicks_; }

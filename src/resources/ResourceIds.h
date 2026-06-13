@@ -1,5 +1,7 @@
 #pragma once
 
+#define IDI_CABLE_JAM 101
+
 #define IDR_MP3_UI_BUTTON_CLICK 301
 #define IDR_MP3_UI_CONFIRM 302
 #define IDR_MP3_UI_CANCEL 303

@@ -126,6 +126,30 @@ void RenderContext::DrawPolyline(std::span<const core::Point> points, D2D1_COLOR
     target_->DrawGeometry(geometry.Get(), brush.Get(), width, roundedStroke_.Get());
 }
 
+void RenderContext::FillPolygon(std::span<const core::Point> points, D2D1_COLOR_F color) {
+    if (points.size() < 3) {
+        return;
+    }
+    auto geometry = CreatePolygonGeometry(points, true);
+    if (!geometry) {
+        return;
+    }
+    auto brush = CreateBrush(color);
+    target_->FillGeometry(geometry.Get(), brush.Get());
+}
+
+void RenderContext::StrokePolygon(std::span<const core::Point> points, D2D1_COLOR_F color, float width) {
+    if (points.size() < 2) {
+        return;
+    }
+    auto geometry = CreatePolygonGeometry(points, true);
+    if (!geometry) {
+        return;
+    }
+    auto brush = CreateBrush(color);
+    target_->DrawGeometry(geometry.Get(), brush.Get(), width, roundedStroke_.Get());
+}
+
 void RenderContext::DrawTextUtf8(
     const std::string& text,
     const core::Rect& rect,
@@ -192,6 +216,24 @@ ComPtr<ID2D1SolidColorBrush> RenderContext::CreateBrush(D2D1_COLOR_F color) {
     ComPtr<ID2D1SolidColorBrush> brush;
     target_->CreateSolidColorBrush(color, brush.Put());
     return brush;
+}
+
+ComPtr<ID2D1PathGeometry> RenderContext::CreatePolygonGeometry(std::span<const core::Point> points, bool closed) {
+    ComPtr<ID2D1PathGeometry> geometry;
+    if (points.empty() || FAILED(d2dFactory_->CreatePathGeometry(geometry.Put()))) {
+        return {};
+    }
+    ComPtr<ID2D1GeometrySink> sink;
+    if (FAILED(geometry->Open(sink.Put()))) {
+        return {};
+    }
+    sink->BeginFigure(D2D1::Point2F(points[0].x, points[0].y), D2D1_FIGURE_BEGIN_FILLED);
+    for (std::size_t i = 1; i < points.size(); ++i) {
+        sink->AddLine(D2D1::Point2F(points[i].x, points[i].y));
+    }
+    sink->EndFigure(closed ? D2D1_FIGURE_END_CLOSED : D2D1_FIGURE_END_OPEN);
+    sink->Close();
+    return geometry;
 }
 
 } // namespace cable::graphics
