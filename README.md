@@ -2,6 +2,8 @@
 
 一个 Windows 桌面版单机轻休闲解谜游戏。玩家需要观察一团互相阻挡的数据线，找出当前插头朝外且路径畅通的线，把它们按合适顺序抽走，最终清空棋盘。
 
+![](https://github.com/user-attachments/assets/ba0c3cfa-0c66-489a-80b1-ae04d880995e)
+
 仓库地址：https://github.com/sdcb/cable-jam
 
 ## 玩法
