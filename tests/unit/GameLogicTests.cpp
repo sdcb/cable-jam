@@ -11,13 +11,15 @@ using namespace cable::game;
 
 TEST_CASE("board size follows difficulty bands") {
     CHECK(LevelGenerator::BoardSizeForLevel(1) == BoardSize{8, 6});
-    CHECK(LevelGenerator::BoardSizeForLevel(18) == BoardSize{8, 6});
-    CHECK(LevelGenerator::BoardSizeForLevel(19) == BoardSize{10, 7});
-    CHECK(LevelGenerator::BoardSizeForLevel(42) == BoardSize{10, 7});
-    CHECK(LevelGenerator::BoardSizeForLevel(43) == BoardSize{12, 8});
-    CHECK(LevelGenerator::BoardSizeForLevel(63) == BoardSize{12, 8});
-    CHECK(LevelGenerator::BoardSizeForLevel(64) == BoardSize{14, 9});
-    CHECK(LevelGenerator::BoardSizeForLevel(81) == BoardSize{14, 9});
+    CHECK(LevelGenerator::BoardSizeForLevel(9) == BoardSize{8, 6});
+    CHECK(LevelGenerator::BoardSizeForLevel(10) == BoardSize{10, 7});
+    CHECK(LevelGenerator::BoardSizeForLevel(27) == BoardSize{12, 8});
+    CHECK(LevelGenerator::BoardSizeForLevel(36) == BoardSize{14, 9});
+    CHECK(LevelGenerator::BoardSizeForLevel(45) == BoardSize{16, 10});
+    CHECK(LevelGenerator::BoardSizeForLevel(54) == BoardSize{18, 12});
+    CHECK(LevelGenerator::BoardSizeForLevel(63) == BoardSize{22, 14});
+    CHECK(LevelGenerator::BoardSizeForLevel(72) == BoardSize{25, 16});
+    CHECK(LevelGenerator::BoardSizeForLevel(81) == BoardSize{28, 18});
 }
 
 TEST_CASE("star rating depends only on failed attempts") {
@@ -52,9 +54,7 @@ TEST_CASE("generated levels are bounded, full, non-overlapping, and solvable") {
         CHECK_FALSE(level.cables.empty());
         GameState state(level);
         CHECK(state.AvailableCableIds().size() < level.cables.size());
-        if (levelNumber >= 64) {
-            CHECK(state.AvailableCableIds().size() <= 2);
-        }
+        int maxAvailable = static_cast<int>(state.AvailableCableIds().size());
         for (const Cable& cable : level.cables) {
             CHECK(cable.path.size() >= 2);
             CHECK(cable.plugDirection == DirectionFromDelta(cable.path[1], cable.path[0]));
@@ -75,15 +75,35 @@ TEST_CASE("generated levels are bounded, full, non-overlapping, and solvable") {
         CHECK(occupied.size() == static_cast<std::size_t>(level.board.columns * level.board.rows));
         for (int id : level.solutionOrder) {
             const std::vector<int> available = state.AvailableCableIds();
+            maxAvailable = std::max(maxAvailable, static_cast<int>(available.size()));
             CHECK(std::find(available.begin(), available.end(), id) != available.end());
-            if (levelNumber >= 64) {
-                CHECK(available.size() <= 2);
-            }
             CHECK(state.TryClickCableById(id));
             state.Update(1.0f);
         }
         CHECK(state.Completed());
+        CHECK(maxAvailable >= 2);
     }
+}
+
+TEST_CASE("generated levels are deterministic per seed and varied by seed") {
+    const Level a = LevelGenerator::Generate(81, 1234);
+    const Level b = LevelGenerator::Generate(81, 1234);
+    const Level c = LevelGenerator::Generate(81, 5678);
+    REQUIRE(a.cables.size() == b.cables.size());
+    CHECK(a.board == BoardSize{28, 18});
+    CHECK(a.cables.front().path == b.cables.front().path);
+    CHECK(a.cables.front().path != c.cables.front().path);
+
+    int rowMajorDrops = 0;
+    int previous = -1;
+    for (const Cable& cable : a.cables) {
+        const int current = cable.path.front().y * a.board.columns + cable.path.front().x;
+        if (previous >= 0 && current < previous) {
+            ++rowMajorDrops;
+        }
+        previous = current;
+    }
+    CHECK(rowMajorDrops >= 4);
 }
 
 TEST_CASE("hit testing works on a cable body") {

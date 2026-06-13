@@ -145,8 +145,8 @@ void DrawPlug(graphics::RenderContext& context, core::Point center, game::Direct
         context.StrokeEllipse(CenteredRect(center, size * 0.20f, size * 0.20f), Color(0.78f, 0.82f, 0.76f), 1.5f);
     }
 
-    const core::Point neckA{center.x - dir.x * size * 0.36f, center.y - dir.y * size * 0.36f};
-    const core::Point neckB{center.x - dir.x * size * 0.54f, center.y - dir.y * size * 0.54f};
+    const core::Point neckA{center.x + dir.x * size * 0.36f, center.y + dir.y * size * 0.36f};
+    const core::Point neckB{center.x + dir.x * size * 0.54f, center.y + dir.y * size * 0.54f};
     context.DrawLine(neckA, neckB, dark, std::max(3.0f, size * 0.10f));
 }
 
@@ -362,10 +362,6 @@ private:
         }
         const core::Point plug = points.back();
         DrawPlug(context, plug, cable.plugDirection, cable.plugStyle, layout.plugSize);
-        const core::Point tail = points.front();
-        if (points.size() > 1) {
-            context.FillEllipse({tail.x - layout.cableWidth * 0.38f, tail.y - layout.cableWidth * 0.38f, layout.cableWidth * 0.76f, layout.cableWidth * 0.76f}, Color(0.97f, 0.92f, 0.76f));
-        }
     }
 
     app::App& app_;

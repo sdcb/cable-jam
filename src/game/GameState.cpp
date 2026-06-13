@@ -27,7 +27,7 @@ bool InBounds(BoardSize board, GridPos pos) {
 } // namespace
 
 GameState::GameState(Level level) : level_(std::move(level)) {
-    SetPlayArea({190.0f, 112.0f, 900.0f, 500.0f});
+    SetPlayArea({96.0f, 104.0f, 1088.0f, 528.0f});
 }
 
 void GameState::SetPlayArea(core::Rect playArea) {
