@@ -56,7 +56,7 @@ public:
             DrawModal(context, {360.0f, 150.0f, 560.0f, 450.0f});
             context.DrawTextUtf8("Cable Jam", {360.0f, 184.0f, 560.0f, 46.0f}, 34.0f, Color(0.96f, 0.98f, 0.92f), DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
             context.DrawTextUtf8("充电请排队", {360.0f, 230.0f, 560.0f, 34.0f}, 22.0f, Color(0.55f, 0.84f, 0.92f), DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-            context.DrawTextUtf8("开发者：sdcb\n版本：v1.0\n版权：MIT\n仓库：https://github.com/sdcb/cable-jam\n依赖：cJSON、Direct2D、DirectWrite、XAudio2", {410.0f, 296.0f, 460.0f, 170.0f}, 21.0f, Color(0.82f, 0.88f, 0.86f), DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
+            context.DrawTextUtf8("开发者：sdcb\n版本：v1.0\n版权：2026 sdcb / MIT\n仓库：https://github.com/sdcb/cable-jam\n依赖：cJSON、Direct2D、DirectWrite、XAudio2", {410.0f, 296.0f, 460.0f, 170.0f}, 21.0f, Color(0.82f, 0.88f, 0.86f), DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
         } else {
             DrawModal(context, {340.0f, 150.0f, 600.0f, 420.0f});
             char summary[160]{};
