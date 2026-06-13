@@ -1,10 +1,28 @@
 #include "core/WinFile.h"
 
-#include <filesystem>
 #include <fstream>
 #include <sstream>
 
+#include <windows.h>
+
 namespace cable::core {
+namespace {
+
+std::string ParentPath(const std::string& path) {
+    const std::size_t slash = path.find_last_of("\\/");
+    if (slash == std::string::npos) {
+        return {};
+    }
+    if (slash == 0) {
+        return path.substr(0, 1);
+    }
+    if (slash == 2 && path[1] == ':') {
+        return path.substr(0, 3);
+    }
+    return path.substr(0, slash);
+}
+
+} // namespace
 
 std::string ReadTextFile(const std::string& path) {
     std::ifstream input(path, std::ios::binary);
@@ -17,9 +35,9 @@ std::string ReadTextFile(const std::string& path) {
 }
 
 bool WriteTextFile(const std::string& path, const std::string& text) {
-    const std::filesystem::path file(path);
-    if (file.has_parent_path()) {
-        std::filesystem::create_directories(file.parent_path());
+    const std::string parent = ParentPath(path);
+    if (!parent.empty()) {
+        CreateDirectories(parent);
     }
     std::ofstream output(path, std::ios::binary);
     if (!output) {
@@ -30,15 +48,36 @@ bool WriteTextFile(const std::string& path, const std::string& text) {
 }
 
 bool DirectoryExists(const std::string& path) {
-    return std::filesystem::is_directory(path);
+    const DWORD attributes = GetFileAttributesA(path.c_str());
+    return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
 }
 
 bool CreateDirectories(const std::string& path) {
-    return std::filesystem::create_directories(path) || std::filesystem::is_directory(path);
+    if (path.empty() || DirectoryExists(path)) {
+        return true;
+    }
+    const std::string parent = ParentPath(path);
+    if (!parent.empty() && parent != path && !DirectoryExists(parent) && !CreateDirectories(parent)) {
+        return false;
+    }
+    if (CreateDirectoryA(path.c_str(), nullptr)) {
+        return true;
+    }
+    return GetLastError() == ERROR_ALREADY_EXISTS && DirectoryExists(path);
 }
 
 std::string CurrentDirectory() {
-    return std::filesystem::current_path().string();
+    const DWORD required = GetCurrentDirectoryA(0, nullptr);
+    if (required == 0) {
+        return {};
+    }
+    std::string path(required, '\0');
+    const DWORD written = GetCurrentDirectoryA(required, path.data());
+    if (written == 0) {
+        return {};
+    }
+    path.resize(written);
+    return path;
 }
 
 } // namespace cable::core

@@ -3,6 +3,7 @@
 #include "app/App.h"
 #include "game/LevelGenerator.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdio>
@@ -13,15 +14,14 @@ namespace {
 
 using graphics::Color;
 
-const std::array<D2D1_COLOR_F, 8> CableColors{
-    Color(0.15f, 0.56f, 0.92f),
-    Color(0.92f, 0.30f, 0.53f),
-    Color(0.95f, 0.72f, 0.22f),
-    Color(0.30f, 0.75f, 0.44f),
-    Color(0.58f, 0.42f, 0.95f),
-    Color(0.93f, 0.48f, 0.22f),
-    Color(0.20f, 0.78f, 0.78f),
-    Color(0.82f, 0.84f, 0.38f)
+const std::array<D2D1_COLOR_F, 7> CableColors{
+    Color(0.90f, 0.22f, 0.21f),
+    Color(0.96f, 0.49f, 0.00f),
+    Color(0.93f, 0.25f, 0.48f),
+    Color(0.26f, 0.63f, 0.28f),
+    Color(0.15f, 0.78f, 0.85f),
+    Color(0.12f, 0.53f, 0.90f),
+    Color(0.49f, 0.34f, 0.76f)
 };
 
 void DrawBackdrop(graphics::RenderContext& context) {
@@ -29,6 +29,19 @@ void DrawBackdrop(graphics::RenderContext& context) {
     context.FillRect({0.0f, 0.0f, 1280.0f, 720.0f}, Color(0.055f, 0.075f, 0.09f));
     context.FillRect({0.0f, 0.0f, 1280.0f, 86.0f}, Color(0.09f, 0.14f, 0.16f));
     context.FillRect({0.0f, 650.0f, 1280.0f, 70.0f}, Color(0.04f, 0.055f, 0.07f));
+}
+
+void DrawMenuDecorations(graphics::RenderContext& context) {
+    const std::array<core::Point, 5> leftCable{{{105.0f, 160.0f}, {105.0f, 280.0f}, {180.0f, 280.0f}, {180.0f, 410.0f}, {260.0f, 410.0f}}};
+    const std::array<core::Point, 5> rightCable{{{1110.0f, 145.0f}, {1035.0f, 145.0f}, {1035.0f, 265.0f}, {955.0f, 265.0f}, {955.0f, 385.0f}}};
+    const std::array<core::Point, 4> bottomCable{{{285.0f, 590.0f}, {430.0f, 590.0f}, {430.0f, 540.0f}, {560.0f, 540.0f}}};
+    const std::array<core::Point, 4> lowCable{{{730.0f, 560.0f}, {855.0f, 560.0f}, {855.0f, 612.0f}, {1000.0f, 612.0f}}};
+    context.DrawPolyline(leftCable, Color(0.15f, 0.78f, 0.85f, 0.15f), 13.0f);
+    context.DrawPolyline(rightCable, Color(0.96f, 0.49f, 0.00f, 0.16f), 12.0f);
+    context.DrawPolyline(bottomCable, Color(0.49f, 0.34f, 0.76f, 0.15f), 10.0f);
+    context.DrawPolyline(lowCable, Color(0.26f, 0.63f, 0.28f, 0.13f), 9.0f);
+    context.StrokeEllipse({244.0f, 394.0f, 32.0f, 32.0f}, Color(0.94f, 0.95f, 0.86f, 0.18f), 4.0f);
+    context.StrokeRect({939.0f, 372.0f, 36.0f, 22.0f}, Color(0.94f, 0.95f, 0.86f, 0.18f), 3.0f);
 }
 
 float PolylineLength(const std::vector<core::Point>& points) {
@@ -166,6 +179,7 @@ public:
 
     void Render(graphics::RenderContext& context) override {
         DrawBackdrop(context);
+        DrawMenuDecorations(context);
         context.DrawTextUtf8("Cable Jam", {0.0f, 108.0f, 1280.0f, 64.0f}, 50.0f, Color(0.94f, 0.95f, 0.88f), DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
         context.DrawTextUtf8("充电请排队", {0.0f, 166.0f, 1280.0f, 40.0f}, 30.0f, Color(0.40f, 0.80f, 0.95f), DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
         for (const Button& button : buttons_) {
@@ -183,16 +197,21 @@ public:
         if (hit < 0) {
             return false;
         }
-        app_.Audio().Play(audio::SoundId::ButtonClick);
         if (hit == 0) {
+            app_.Audio().EnsureProceduralSoundsCreated();
+            app_.Audio().Play(audio::SoundId::ButtonClick);
             app_.ChangeScene(app::SceneId::Game, app_.Progress().unlockedLevel);
         } else if (hit == 1) {
+            app_.Audio().Play(audio::SoundId::ButtonClick);
             app_.ChangeScene(app::SceneId::LevelSelect);
         } else if (hit == 2) {
+            app_.Audio().Play(audio::SoundId::ButtonClick);
             app_.PushOverlay(MakeHelpOverlay(app_));
         } else if (hit == 3) {
+            app_.Audio().Play(audio::SoundId::ButtonClick);
             app_.PushOverlay(MakeAboutOverlay(app_));
         } else {
+            app_.Audio().Play(audio::SoundId::ButtonClick);
             app_.RequestClose();
         }
         return true;
@@ -304,10 +323,19 @@ public:
             app_.ChangeScene(app::SceneId::MainMenu);
             return true;
         }
-        const bool removed = state_.TryClickCable({x, y});
+        const std::optional<int> hit = state_.HitTestCable({x, y});
+        const game::Cable* clicked = nullptr;
+        if (hit) {
+            const auto& cables = state_.CurrentLevel().cables;
+            const auto found = std::find_if(cables.begin(), cables.end(), [&](const game::Cable& cable) { return cable.id == *hit; });
+            if (found != cables.end()) {
+                clicked = &*found;
+            }
+        }
+        const bool removed = hit && state_.TryClickCableById(*hit);
         if (removed) {
-            app_.Audio().Play(audio::SoundId::CablePull);
-        } else if (state_.HitTestCable({x, y})) {
+            app_.Audio().PlayCablePull(clicked ? clicked->colorIndex : 0, clicked ? clicked->plugStyle : 0);
+        } else if (hit) {
             app_.Audio().Play(audio::SoundId::CableBlocked);
         }
         return true;

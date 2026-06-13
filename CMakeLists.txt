@@ -82,8 +82,8 @@ target_compile_definitions(cable_app PUBLIC
     NOMINMAX
 )
 target_link_libraries(cable_app PUBLIC
-    d2d1 dwrite windowscodecs xaudio2_8 ole32 uuid shlwapi comctl32
-    mfplat mfreadwrite mfuuid gdi32 user32
+    d2d1 dwrite windowscodecs xaudio2_8 ole32 uuid comctl32
+    gdi32 user32
 )
 
 add_executable(cable_jam WIN32

@@ -1,136 +1,109 @@
 #include "audio/AudioEngine.h"
 
-#include "resources/ResourceIds.h"
-
 #include <algorithm>
 #include <array>
-
-#include <mfapi.h>
-#include <mfidl.h>
-#include <mfreadwrite.h>
-#include <shlwapi.h>
-#include <windows.h>
-#include <xaudio2.h>
+#include <cmath>
+#include <cstdint>
+#include <span>
 
 namespace cable::audio {
 namespace {
 
-struct CatalogEntry {
-    SoundId id;
-    int resourceId;
-    float volume;
+constexpr int SampleRate = 44100;
+constexpr int ChannelCount = 1;
+constexpr int BitsPerSample = 16;
+constexpr float Pi = 3.1415926535f;
+constexpr std::array<float, 7> NoteFrequencies{
+    523.25f, // Do C5
+    587.33f, // Re D5
+    659.25f, // Mi E5
+    698.46f, // Fa F5
+    783.99f, // Sol G5
+    880.00f, // La A5
+    987.77f  // Si B5
 };
 
-constexpr std::array<CatalogEntry, 6> Catalog{{
-    {SoundId::ButtonClick, IDR_MP3_UI_BUTTON_CLICK, 0.45f},
-    {SoundId::Confirm, IDR_MP3_UI_CONFIRM, 0.55f},
-    {SoundId::Cancel, IDR_MP3_UI_CANCEL, 0.50f},
-    {SoundId::CablePull, IDR_MP3_CABLE_PULL, 0.62f},
-    {SoundId::CableBlocked, IDR_MP3_CABLE_BLOCKED, 0.58f},
-    {SoundId::LevelComplete, IDR_MP3_LEVEL_COMPLETE, 0.72f}
-}};
+enum class WaveShape {
+    Sine,
+    Square,
+    Triangle
+};
 
-bool ResourceBytes(int resourceId, const unsigned char*& data, DWORD& size) {
-    HMODULE module = GetModuleHandleW(nullptr);
-    HRSRC resource = FindResourceW(module, MAKEINTRESOURCEW(resourceId), RT_RCDATA);
-    if (!resource) {
-        return false;
-    }
-    HGLOBAL loaded = LoadResource(module, resource);
-    if (!loaded) {
-        return false;
-    }
-    data = static_cast<const unsigned char*>(LockResource(loaded));
-    size = SizeofResource(module, resource);
-    return data && size > 0;
+struct Tone {
+    float frequency;
+    WaveShape shape;
+    float seconds;
+};
+
+WAVEFORMATEX PcmFormat() {
+    WAVEFORMATEX format{};
+    format.wFormatTag = WAVE_FORMAT_PCM;
+    format.nChannels = ChannelCount;
+    format.nSamplesPerSec = SampleRate;
+    format.wBitsPerSample = BitsPerSample;
+    format.nBlockAlign = static_cast<WORD>(format.nChannels * format.wBitsPerSample / 8);
+    format.nAvgBytesPerSec = format.nSamplesPerSec * format.nBlockAlign;
+    return format;
 }
 
-bool DecodeMp3Resource(int resourceId, AudioEngine::SoundBuffer& output) {
-    const unsigned char* data = nullptr;
-    DWORD size = 0;
-    if (!ResourceBytes(resourceId, data, size)) {
-        return false;
+float WaveSample(WaveShape shape, float phase) {
+    switch (shape) {
+    case WaveShape::Sine:
+        return std::sin(phase);
+    case WaveShape::Square:
+        return std::sin(phase) >= 0.0f ? 1.0f : -1.0f;
+    case WaveShape::Triangle:
+        return (2.0f / Pi) * std::asin(std::sin(phase));
     }
+    return 0.0f;
+}
 
-    IStream* stream = SHCreateMemStream(data, size);
-    if (!stream) {
-        return false;
-    }
+float Envelope(int sample, int sampleCount) {
+    const int edge = std::max(1, static_cast<int>(SampleRate * 0.006f));
+    const float attack = std::min(1.0f, static_cast<float>(sample) / static_cast<float>(edge));
+    const float release = std::min(1.0f, static_cast<float>(sampleCount - sample - 1) / static_cast<float>(edge));
+    return std::clamp(std::min(attack, release), 0.0f, 1.0f);
+}
 
-    IMFByteStream* byteStream = nullptr;
-    HRESULT hr = MFCreateMFByteStreamOnStreamEx(stream, &byteStream);
-    stream->Release();
-    if (FAILED(hr)) {
-        return false;
+void AppendTone(std::vector<unsigned char>& audio, Tone tone, float gain) {
+    const int sampleCount = std::max(1, static_cast<int>(tone.seconds * SampleRate));
+    for (int i = 0; i < sampleCount; ++i) {
+        const float time = static_cast<float>(i) / static_cast<float>(SampleRate);
+        const float phase = 2.0f * Pi * tone.frequency * time;
+        const float sample = WaveSample(tone.shape, phase) * Envelope(i, sampleCount) * gain;
+        const auto value = static_cast<std::int16_t>(std::clamp(sample, -1.0f, 1.0f) * 32767.0f);
+        audio.push_back(static_cast<unsigned char>(value & 0xff));
+        audio.push_back(static_cast<unsigned char>((value >> 8) & 0xff));
     }
+}
 
-    IMFSourceReader* reader = nullptr;
-    hr = MFCreateSourceReaderFromByteStream(byteStream, nullptr, &reader);
-    byteStream->Release();
-    if (FAILED(hr)) {
-        return false;
-    }
+AudioEngine::SoundBuffer MakeTone(Tone tone, float gain, float volume) {
+    AudioEngine::SoundBuffer buffer;
+    buffer.format = PcmFormat();
+    buffer.volume = volume;
+    AppendTone(buffer.audio, tone, gain);
+    return buffer;
+}
 
-    IMFMediaType* requestedType = nullptr;
-    hr = MFCreateMediaType(&requestedType);
-    if (SUCCEEDED(hr)) {
-        requestedType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
-        requestedType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
-        hr = reader->SetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, nullptr, requestedType);
-        requestedType->Release();
+AudioEngine::SoundBuffer MakeSequence(std::span<const Tone> tones, float gain, float volume) {
+    AudioEngine::SoundBuffer buffer;
+    buffer.format = PcmFormat();
+    buffer.volume = volume;
+    for (Tone tone : tones) {
+        AppendTone(buffer.audio, tone, gain);
     }
-    if (FAILED(hr)) {
-        reader->Release();
-        return false;
-    }
+    return buffer;
+}
 
-    IMFMediaType* actualType = nullptr;
-    hr = reader->GetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, &actualType);
-    if (FAILED(hr)) {
-        reader->Release();
-        return false;
+WaveShape ShapeForPlugStyle(int plugStyle) {
+    switch (plugStyle % 3) {
+    case 0:
+        return WaveShape::Sine;
+    case 1:
+        return WaveShape::Square;
+    default:
+        return WaveShape::Triangle;
     }
-
-    WAVEFORMATEX* waveFormat = nullptr;
-    UINT32 waveFormatSize = 0;
-    hr = MFCreateWaveFormatExFromMFMediaType(actualType, &waveFormat, &waveFormatSize);
-    actualType->Release();
-    if (FAILED(hr)) {
-        reader->Release();
-        return false;
-    }
-    output.format.assign(reinterpret_cast<unsigned char*>(waveFormat), reinterpret_cast<unsigned char*>(waveFormat) + waveFormatSize);
-    CoTaskMemFree(waveFormat);
-
-    while (true) {
-        DWORD flags = 0;
-        IMFSample* sample = nullptr;
-        hr = reader->ReadSample(MF_SOURCE_READER_FIRST_AUDIO_STREAM, 0, nullptr, &flags, nullptr, &sample);
-        if (FAILED(hr)) {
-            break;
-        }
-        if (flags & MF_SOURCE_READERF_ENDOFSTREAM) {
-            break;
-        }
-        if (!sample) {
-            continue;
-        }
-        IMFMediaBuffer* buffer = nullptr;
-        if (SUCCEEDED(sample->ConvertToContiguousBuffer(&buffer))) {
-            BYTE* bytes = nullptr;
-            DWORD maxLength = 0;
-            DWORD currentLength = 0;
-            if (SUCCEEDED(buffer->Lock(&bytes, &maxLength, &currentLength))) {
-                output.audio.insert(output.audio.end(), bytes, bytes + currentLength);
-                buffer->Unlock();
-            }
-            buffer->Release();
-        }
-        sample->Release();
-    }
-
-    reader->Release();
-    return !output.format.empty() && !output.audio.empty();
 }
 
 } // namespace
@@ -148,33 +121,54 @@ AudioEngine::~AudioEngine() {
         engine_->Release();
         engine_ = nullptr;
     }
-    if (initialized_) {
-        MFShutdown();
-    }
 }
 
 bool AudioEngine::Initialize() {
     if (initialized_) {
         return true;
     }
-    initialized_ = SUCCEEDED(MFStartup(MF_VERSION, MFSTARTUP_LITE));
-    if (!initialized_) {
-        return false;
-    }
     if (FAILED(XAudio2Create(&engine_, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
         return false;
     }
     if (FAILED(engine_->CreateMasteringVoice(&masterVoice_))) {
+        engine_->Release();
+        engine_ = nullptr;
         return false;
     }
     masterVoice_->SetVolume(masterVolume_);
-    for (const CatalogEntry& entry : Catalog) {
-        SoundBuffer buffer;
-        buffer.volume = entry.volume;
-        if (DecodeMp3Resource(entry.resourceId, buffer)) {
-            sounds_[entry.id] = std::move(buffer);
+    initialized_ = true;
+    return true;
+}
+
+bool AudioEngine::EnsureProceduralSoundsCreated() {
+    if (soundsCreated_) {
+        return true;
+    }
+    if (!initialized_ && !Initialize()) {
+        return false;
+    }
+
+    sounds_[SoundId::ButtonClick] = MakeTone({880.0f, WaveShape::Sine, 0.045f}, 0.38f, 0.42f);
+    sounds_[SoundId::Confirm] = MakeTone({660.0f, WaveShape::Triangle, 0.075f}, 0.44f, 0.50f);
+    sounds_[SoundId::Cancel] = MakeTone({220.0f, WaveShape::Triangle, 0.095f}, 0.40f, 0.46f);
+    sounds_[SoundId::CableBlocked] = MakeTone({150.0f, WaveShape::Square, 0.115f}, 0.26f, 0.42f);
+
+    constexpr std::array<Tone, 4> complete{
+        Tone{523.25f, WaveShape::Sine, 0.075f},
+        Tone{659.25f, WaveShape::Sine, 0.075f},
+        Tone{783.99f, WaveShape::Sine, 0.075f},
+        Tone{1046.50f, WaveShape::Sine, 0.130f}
+    };
+    sounds_[SoundId::LevelComplete] = MakeSequence(complete, 0.38f, 0.64f);
+
+    for (std::size_t color = 0; color < NoteFrequencies.size(); ++color) {
+        for (int style = 0; style < 3; ++style) {
+            cablePullSounds_[color][static_cast<std::size_t>(style)] =
+                MakeTone({NoteFrequencies[color], ShapeForPlugStyle(style), 0.105f}, style == 1 ? 0.26f : 0.34f, 0.62f);
         }
     }
+
+    soundsCreated_ = true;
     return true;
 }
 
@@ -186,29 +180,43 @@ void AudioEngine::SetMasterVolume(float volume) {
 }
 
 void AudioEngine::Play(SoundId id) {
-    if (!engine_) {
+    if (!soundsCreated_) {
+        return;
+    }
+    auto it = sounds_.find(id);
+    if (it != sounds_.end()) {
+        PlayBuffer(it->second);
+    }
+}
+
+void AudioEngine::PlayCablePull(int colorIndex, int plugStyle) {
+    if (!soundsCreated_) {
+        return;
+    }
+    const auto color = static_cast<std::size_t>((colorIndex % 7 + 7) % 7);
+    const auto style = static_cast<std::size_t>((plugStyle % 3 + 3) % 3);
+    PlayBuffer(cablePullSounds_[color][style]);
+}
+
+void AudioEngine::PlayBuffer(const SoundBuffer& sound) {
+    if (!engine_ || sound.audio.empty()) {
         return;
     }
     CleanupVoices();
-    auto it = sounds_.find(id);
-    if (it == sounds_.end() || it->second.format.empty() || it->second.audio.empty()) {
-        return;
-    }
 
     IXAudio2SourceVoice* voice = nullptr;
-    const WAVEFORMATEX* format = reinterpret_cast<const WAVEFORMATEX*>(it->second.format.data());
-    if (FAILED(engine_->CreateSourceVoice(&voice, format))) {
+    if (FAILED(engine_->CreateSourceVoice(&voice, &sound.format))) {
         return;
     }
     XAUDIO2_BUFFER buffer{};
-    buffer.AudioBytes = static_cast<UINT32>(it->second.audio.size());
-    buffer.pAudioData = it->second.audio.data();
+    buffer.AudioBytes = static_cast<UINT32>(sound.audio.size());
+    buffer.pAudioData = sound.audio.data();
     buffer.Flags = XAUDIO2_END_OF_STREAM;
     if (FAILED(voice->SubmitSourceBuffer(&buffer))) {
         voice->DestroyVoice();
         return;
     }
-    voice->SetVolume(it->second.volume);
+    voice->SetVolume(sound.volume);
     if (FAILED(voice->Start())) {
         voice->DestroyVoice();
         return;

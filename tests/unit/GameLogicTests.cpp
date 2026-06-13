@@ -57,6 +57,10 @@ TEST_CASE("generated levels are bounded, full, non-overlapping, and solvable") {
         int maxAvailable = static_cast<int>(state.AvailableCableIds().size());
         for (const Cable& cable : level.cables) {
             CHECK(cable.path.size() >= 2);
+            CHECK(cable.colorIndex >= 0);
+            CHECK(cable.colorIndex < 7);
+            CHECK(cable.plugStyle >= 0);
+            CHECK(cable.plugStyle < 3);
             CHECK(cable.plugDirection == DirectionFromDelta(cable.path[1], cable.path[0]));
             for (std::size_t i = 0; i < cable.path.size(); ++i) {
                 const GridPos pos = cable.path[i];

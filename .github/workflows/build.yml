@@ -9,7 +9,6 @@ on:
       - "CMakePresets.json"
       - "src/**"
       - "tests/**"
-      - "assets/audio/*.mp3"
       - "icons/cable-jam.ico"
   pull_request:
     paths:
@@ -18,7 +17,6 @@ on:
       - "CMakePresets.json"
       - "src/**"
       - "tests/**"
-      - "assets/audio/*.mp3"
       - "icons/cable-jam.ico"
   workflow_dispatch:
 

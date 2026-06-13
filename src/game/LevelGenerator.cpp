@@ -270,7 +270,7 @@ Level TryGenerate(int levelNumber, std::uint32_t seed) {
                 cable.id = static_cast<int>(level.cables.size()) + 1;
                 cable.plugDirection = candidate.outward;
                 cable.path = std::move(path);
-                cable.colorIndex = static_cast<int>((cable.id + rng()) % 8);
+                cable.colorIndex = static_cast<int>((cable.id + rng()) % 7);
                 cable.plugStyle = static_cast<int>((cable.id + levelNumber + rng()) % 3);
                 level.solutionOrder.push_back(cable.id);
                 level.cables.push_back(std::move(cable));
@@ -351,7 +351,7 @@ Level BuildFallbackLevel(int levelNumber, std::uint32_t seed) {
         cable.id = static_cast<int>(level.cables.size()) + 1;
         cable.plugDirection = fromTop ? Direction::Up : Direction::Down;
         cable.path = BuildStripPath(level.board, firstRow, height, fromTop);
-        cable.colorIndex = static_cast<int>((cable.id + rng()) % 8);
+        cable.colorIndex = static_cast<int>((cable.id + rng()) % 7);
         cable.plugStyle = static_cast<int>((cable.id + levelNumber + rng()) % 3);
         level.solutionOrder.push_back(cable.id);
         level.cables.push_back(std::move(cable));

@@ -10,7 +10,6 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <filesystem>
 #include <optional>
 #include <string>
 
@@ -24,6 +23,39 @@ std::wstring Utf8ToWide(const std::string& text) {
     std::wstring wide(static_cast<std::size_t>(size), L'\0');
     MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), wide.data(), size);
     return wide;
+}
+
+std::wstring ParentPath(const std::wstring& path) {
+    const std::size_t slash = path.find_last_of(L"\\/");
+    if (slash == std::wstring::npos) {
+        return {};
+    }
+    if (slash == 0) {
+        return path.substr(0, 1);
+    }
+    if (slash == 2 && path[1] == L':') {
+        return path.substr(0, 3);
+    }
+    return path.substr(0, slash);
+}
+
+bool DirectoryExists(const std::wstring& path) {
+    const DWORD attributes = GetFileAttributesW(path.c_str());
+    return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+}
+
+bool CreateDirectories(const std::wstring& path) {
+    if (path.empty() || DirectoryExists(path)) {
+        return true;
+    }
+    const std::wstring parent = ParentPath(path);
+    if (!parent.empty() && parent != path && !DirectoryExists(parent) && !CreateDirectories(parent)) {
+        return false;
+    }
+    if (CreateDirectoryW(path.c_str(), nullptr)) {
+        return true;
+    }
+    return GetLastError() == ERROR_ALREADY_EXISTS && DirectoryExists(path);
 }
 
 struct Args {
@@ -102,9 +134,9 @@ bool CaptureWindowJpeg(HWND hwnd, const std::wstring& path, float quality) {
 
     bool ok = false;
     if (copied) {
-        const std::filesystem::path outPath(path);
-        if (outPath.has_parent_path()) {
-            std::filesystem::create_directories(outPath.parent_path());
+        const std::wstring parent = ParentPath(path);
+        if (!parent.empty()) {
+            CreateDirectories(parent);
         }
 
         cable::graphics::ComPtr<IWICImagingFactory> wic;

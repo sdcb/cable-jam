@@ -27,7 +27,7 @@
 
 - C++ / Win32
 - Direct2D / DirectWrite / WIC
-- Media Foundation / XAudio2.8
+- XAudio2.8 程序化音效
 - cJSON
 - doctest
 - CMake / Ninja / MSVC
@@ -37,12 +37,12 @@
 ```text
 .
 ├── assets/                 # 音效资源
-│   └── audio/              # mp3 音效和生成脚本
+│   └── audio/              # 历史音效脚本和素材
 ├── icons/                  # 应用图标
 ├── spec/                   # 游戏规则和规格文档
 ├── src/
 │   ├── app/                # App 主流程、Win32 窗口、DPI、入口 WinMain
-│   ├── audio/              # XAudio2 音频引擎和 mp3 加载
+│   ├── audio/              # XAudio2 音频引擎和 PCM 音效生成
 │   ├── core/               # 场景/覆盖层基类、几何、计时、补间
 │   ├── game/               # 游戏状态、关卡生成、进度存储
 │   ├── graphics/           # Direct2D 渲染上下文
@@ -85,7 +85,7 @@ x64 和 x86 构建会运行测试；arm64 为交叉编译产物，不在 x64 run
 
 - `appsettings.json` 默认按当前工作目录读写。
 - 过关记录包括已解锁关卡、最佳点击次数和最佳星级。
-- 图标和 mp3 音效通过 Windows `.rc` 嵌入程序。
+- 图标通过 Windows `.rc` 嵌入程序，音效在运行时生成。
 
 ## License
 
