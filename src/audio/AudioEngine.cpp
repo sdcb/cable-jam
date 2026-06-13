@@ -13,27 +13,44 @@ constexpr int SampleRate = 44100;
 constexpr int ChannelCount = 1;
 constexpr int BitsPerSample = 16;
 constexpr float Pi = 3.1415926535f;
-constexpr std::array<float, 7> NoteFrequencies{
-    523.25f, // Do C5
-    587.33f, // Re D5
-    659.25f, // Mi E5
-    698.46f, // Fa F5
-    783.99f, // Sol G5
-    880.00f, // La A5
-    987.77f  // Si B5
-};
-
-enum class WaveShape {
-    Sine,
-    Square,
-    Triangle
-};
 
 struct Tone {
     float frequency;
-    WaveShape shape;
     float seconds;
 };
+
+constexpr float G4 = 392.00f;
+constexpr float A4 = 440.00f;
+constexpr float B4 = 493.88f;
+constexpr float C5 = 523.25f;
+constexpr float D5 = 587.33f;
+constexpr float Ds5 = 622.25f;
+constexpr float E5 = 659.25f;
+constexpr float F5 = 698.46f;
+constexpr float Fs5 = 739.99f;
+constexpr float G5 = 783.99f;
+constexpr float A5 = 880.00f;
+constexpr float C6 = 1046.50f;
+
+constexpr auto AmericanPatrolMelody = std::to_array<float>({
+    G4,
+    C5, C5, C5, B4, C5, D5,
+    E5, E5, E5, Ds5, E5, F5,
+    G5, G5, G5, Fs5, G5, C6,
+    G5, G5, G5, E5,
+    F5, F5, E5, D5, F5,
+    E5, E5, D5, C5, E5,
+    D5, A4, B4, C5,
+    D5, G4, A4, B4,
+    C5, C5, C5, B4, C5, D5,
+    E5, E5, E5, Ds5, E5, F5,
+    G5, G5, G5, Fs5, G5, C6,
+    G5, G5, G5, C5,
+    A5, G5, F5, E5,
+    D5, C5, B4, C5,
+    D5, E5, F5, E5, D5,
+    C5, G4, A4, B4, C5, D5, E5
+});
 
 WAVEFORMATEX PcmFormat() {
     WAVEFORMATEX format{};
@@ -44,18 +61,6 @@ WAVEFORMATEX PcmFormat() {
     format.nBlockAlign = static_cast<WORD>(format.nChannels * format.wBitsPerSample / 8);
     format.nAvgBytesPerSec = format.nSamplesPerSec * format.nBlockAlign;
     return format;
-}
-
-float WaveSample(WaveShape shape, float phase) {
-    switch (shape) {
-    case WaveShape::Sine:
-        return std::sin(phase);
-    case WaveShape::Square:
-        return std::sin(phase) >= 0.0f ? 1.0f : -1.0f;
-    case WaveShape::Triangle:
-        return (2.0f / Pi) * std::asin(std::sin(phase));
-    }
-    return 0.0f;
 }
 
 float Envelope(int sample, int sampleCount) {
@@ -70,7 +75,7 @@ void AppendTone(std::vector<unsigned char>& audio, Tone tone, float gain) {
     for (int i = 0; i < sampleCount; ++i) {
         const float time = static_cast<float>(i) / static_cast<float>(SampleRate);
         const float phase = 2.0f * Pi * tone.frequency * time;
-        const float sample = WaveSample(tone.shape, phase) * Envelope(i, sampleCount) * gain;
+        const float sample = std::sin(phase) * Envelope(i, sampleCount) * gain;
         const auto value = static_cast<std::int16_t>(std::clamp(sample, -1.0f, 1.0f) * 32767.0f);
         audio.push_back(static_cast<unsigned char>(value & 0xff));
         audio.push_back(static_cast<unsigned char>((value >> 8) & 0xff));
@@ -93,17 +98,6 @@ AudioEngine::SoundBuffer MakeSequence(std::span<const Tone> tones, float gain, f
         AppendTone(buffer.audio, tone, gain);
     }
     return buffer;
-}
-
-WaveShape ShapeForPlugStyle(int plugStyle) {
-    switch (plugStyle % 3) {
-    case 0:
-        return WaveShape::Sine;
-    case 1:
-        return WaveShape::Square;
-    default:
-        return WaveShape::Triangle;
-    }
 }
 
 } // namespace
@@ -148,25 +142,25 @@ bool AudioEngine::EnsureProceduralSoundsCreated() {
         return false;
     }
 
-    sounds_[SoundId::ButtonClick] = MakeTone({880.0f, WaveShape::Sine, 0.045f}, 0.38f, 0.42f);
-    sounds_[SoundId::Confirm] = MakeTone({660.0f, WaveShape::Triangle, 0.075f}, 0.44f, 0.50f);
-    sounds_[SoundId::Cancel] = MakeTone({220.0f, WaveShape::Triangle, 0.095f}, 0.40f, 0.46f);
-    sounds_[SoundId::CableBlocked] = MakeTone({150.0f, WaveShape::Square, 0.115f}, 0.26f, 0.42f);
+    sounds_[SoundId::ButtonClick] = MakeTone({880.0f, 0.045f}, 0.30f, 0.42f);
+    sounds_[SoundId::Confirm] = MakeTone({660.0f, 0.075f}, 0.34f, 0.50f);
+    sounds_[SoundId::Cancel] = MakeTone({220.0f, 0.095f}, 0.32f, 0.46f);
+    sounds_[SoundId::CableBlocked] = MakeTone({150.0f, 0.115f}, 0.26f, 0.42f);
 
     constexpr std::array<Tone, 4> complete{
-        Tone{523.25f, WaveShape::Sine, 0.075f},
-        Tone{659.25f, WaveShape::Sine, 0.075f},
-        Tone{783.99f, WaveShape::Sine, 0.075f},
-        Tone{1046.50f, WaveShape::Sine, 0.130f}
+        Tone{C5, 0.075f},
+        Tone{E5, 0.075f},
+        Tone{G5, 0.075f},
+        Tone{C6, 0.130f}
     };
     sounds_[SoundId::LevelComplete] = MakeSequence(complete, 0.38f, 0.64f);
 
-    for (std::size_t color = 0; color < NoteFrequencies.size(); ++color) {
-        for (int style = 0; style < 3; ++style) {
-            cablePullSounds_[color][static_cast<std::size_t>(style)] =
-                MakeTone({NoteFrequencies[color], ShapeForPlugStyle(style), 0.105f}, style == 1 ? 0.26f : 0.34f, 0.62f);
-        }
+    cablePullMelody_.clear();
+    cablePullMelody_.reserve(AmericanPatrolMelody.size());
+    for (float frequency : AmericanPatrolMelody) {
+        cablePullMelody_.push_back(MakeTone({frequency, 0.115f}, 0.34f, 0.60f));
     }
+    melodyIndex_ = 0;
 
     soundsCreated_ = true;
     return true;
@@ -189,13 +183,12 @@ void AudioEngine::Play(SoundId id) {
     }
 }
 
-void AudioEngine::PlayCablePull(int colorIndex, int plugStyle) {
-    if (!soundsCreated_) {
+void AudioEngine::PlayCablePull() {
+    if (!soundsCreated_ || cablePullMelody_.empty()) {
         return;
     }
-    const auto color = static_cast<std::size_t>((colorIndex % 7 + 7) % 7);
-    const auto style = static_cast<std::size_t>((plugStyle % 3 + 3) % 3);
-    PlayBuffer(cablePullSounds_[color][style]);
+    PlayBuffer(cablePullMelody_[melodyIndex_]);
+    melodyIndex_ = (melodyIndex_ + 1) % cablePullMelody_.size();
 }
 
 void AudioEngine::PlayBuffer(const SoundBuffer& sound) {

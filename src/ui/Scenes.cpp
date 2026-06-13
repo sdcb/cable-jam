@@ -324,17 +324,9 @@ public:
             return true;
         }
         const std::optional<int> hit = state_.HitTestCable({x, y});
-        const game::Cable* clicked = nullptr;
-        if (hit) {
-            const auto& cables = state_.CurrentLevel().cables;
-            const auto found = std::find_if(cables.begin(), cables.end(), [&](const game::Cable& cable) { return cable.id == *hit; });
-            if (found != cables.end()) {
-                clicked = &*found;
-            }
-        }
         const bool removed = hit && state_.TryClickCableById(*hit);
         if (removed) {
-            app_.Audio().PlayCablePull(clicked ? clicked->colorIndex : 0, clicked ? clicked->plugStyle : 0);
+            app_.Audio().PlayCablePull();
         } else if (hit) {
             app_.Audio().Play(audio::SoundId::CableBlocked);
         }

@@ -27,7 +27,7 @@
 
 - C++ / Win32
 - Direct2D / DirectWrite / WIC
-- XAudio2.8 程序化音效
+- XAudio2.8 程序化音效，抽线音按《American Patrol》旋律逐音推进
 - cJSON
 - doctest
 - CMake / Ninja / MSVC
@@ -42,7 +42,7 @@
 ├── spec/                   # 游戏规则和规格文档
 ├── src/
 │   ├── app/                # App 主流程、Win32 窗口、DPI、入口 WinMain
-│   ├── audio/              # XAudio2 音频引擎和 PCM 音效生成
+│   ├── audio/              # XAudio2 音频引擎和程序化旋律音效
 │   ├── core/               # 场景/覆盖层基类、几何、计时、补间
 │   ├── game/               # 游戏状态、关卡生成、进度存储
 │   ├── graphics/           # Direct2D 渲染上下文

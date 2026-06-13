@@ -2,7 +2,7 @@
 
 #include <xaudio2.h>
 
-#include <array>
+#include <cstddef>
 #include <map>
 #include <vector>
 
@@ -23,7 +23,7 @@ public:
     bool EnsureProceduralSoundsCreated();
     void SetMasterVolume(float volume);
     void Play(SoundId id);
-    void PlayCablePull(int colorIndex, int plugStyle);
+    void PlayCablePull();
 
     struct SoundBuffer {
         WAVEFORMATEX format{};
@@ -37,11 +37,12 @@ private:
 
     bool initialized_{false};
     bool soundsCreated_{false};
+    std::size_t melodyIndex_{0};
     float masterVolume_{0.8f};
     ::IXAudio2* engine_{};
     ::IXAudio2MasteringVoice* masterVoice_{};
     std::map<SoundId, SoundBuffer> sounds_;
-    std::array<std::array<SoundBuffer, 3>, 7> cablePullSounds_;
+    std::vector<SoundBuffer> cablePullMelody_;
     std::vector<::IXAudio2SourceVoice*> activeVoices_;
 };
 
